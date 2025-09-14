@@ -1,0 +1,4 @@
+fastapi[Standard]
+pymongo
+python-dotenv
+requests
