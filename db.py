@@ -3,7 +3,8 @@ import os
 from pymongo import MongoClient
 
 # MongoDB setup
-client = MongoClient(os.getenv("MONGO_URI"), serverSelectionTimeoutMS=60000)
+connection_string = os.getenv("MONGO_URI", "mongodb+srv://book_db:book_db@grow-cohort6.safmckr.mongodb.net/")
+# print(f"Connecting to MongoDB using connection string: {connection_string}")
+client = MongoClient(connection_string, serverSelectionTimeoutMS=60000)
 db = client["book_db"]
 collection = db["book_db"]
-

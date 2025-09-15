@@ -34,7 +34,7 @@ def search_books(title: str):
         raise HTTPException(status_code=500, detail="Failed to fetch books")
 
     data = response.json()
-    if "books" not in data:
+    if "items" not in data:
         raise HTTPException(status_code=404, detail="No books found")
 
     return [
@@ -47,12 +47,13 @@ def search_books(title: str):
         for item in data["items"]
     ]
 
+
 @app.post("/reading-list")
 def add_book(book: Book):
     if collection.find_one({"title": book.title}):
         raise HTTPException(status_code=409, detail="Book already in reading list")
     
-    book_dict = book.dict()
+    book_dict = book.model_dump()
     inserted_id = collection.insert_one(book_dict).inserted_id
     return {"message": "Book added", "book_id": str(inserted_id)}
 
@@ -86,7 +87,7 @@ def recommend_books(title: str):
             full_title = volume.get("title")
             # Use regex to search for books with titles that match a specific pattern
             book_id = item.get("id")
-            if full_title and book_id and re.search(r"\b" + re.escape(title) + r"\b", full_title, re.IGNORECASE) and full_title != title:
+            if full_title and book_id and full_title != title:
                 # Check for duplicates before adding
                 if not any(rec["book_id"] == book_id for rec in recommendations):
                     recommendations.append({
