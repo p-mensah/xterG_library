@@ -1,19 +1,15 @@
 # xterG_library
 
- 📚 Book Search Microservice
+A lightweight FastAPI application that lets you search for books via the Google Books API, save them to a MongoDB “bookshelf,” and perform flexible queries and recommendations.
 
- A Python-based microservice using FastAPI and MongoDB that allows users to search for books, manage a reading list, and get recommendations.
+Features
+- Fetch books from Google Books by keyword
+- Save a book to MongoDB by Google Books volume ID
+- Retrieve all saved books
+- Search saved books by ID, title, or author with a single search field
+- Recommend related books based on an author
 
-# ## 🚀 Features
-
-- Search books via Google Books API
-- Save books to a personal reading list
-- View saved books with reading status
-- Get recommendations based on authors (bonus)
-
-# ## 🧰 Tech Stack
-
-**Language**: Python
-**Framework**: FastAPI
-**Database**: MongoDB
-**External API**: Google Books API
+Prerequisites
+- Python 3.9+
+- MongoDB instance (local or Atlas)
+- Google Books API access (no API key required for basic volume lookup)
