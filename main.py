@@ -1,167 +1,12 @@
-# from fastapi import FastAPI, HTTPException, Query
-# from pydantic import BaseModel
-# from typing import List, Optional, Dict
-# from pymongo import MongoClient
-# from pymongo.errors import PyMongoError
-# import requests
-# from db import collection  # your MongoDB collection
 
-# app = FastAPI()
+"""
+This module implements a lightweight FastAPI application for managing a digital bookshelf.
 
-# GOOGLE_BOOKS_API_URL = "https://www.googleapis.com/books/v1/volumes"
-# MAX_RESULTS = 10
-
-
-# # Pydantic models
-# class Book(BaseModel):
-#     title: str
-#     authors: List[str] = []
-#     published_date: str = "Unknown"
-#     publisher: Optional[str] = None
-#     description: Optional[str] = None
-#     user_status: str = "unread"  # "reading", "finished", "unread"
-#     book_id: str  # unique Google Books ID
-
-
-# class BookItem(BaseModel):
-#     id: Optional[str] = None
-#     volumeInfo: Optional[dict] = {}
-
-
-# class SaveBooksRequest(BaseModel):
-#     books: List[BookItem]
-
-
-# # 1. Search books from Google Books API
-# @app.get("/fetch_books/", tags=["Fetch Books"])
-# def fetch_books(query: str):
-#     try:
-#         params = {"q": query, "maxResults": MAX_RESULTS}
-#         response = requests.get(GOOGLE_BOOKS_API_URL, params=params, timeout=5)
-#         response.raise_for_status()
-#         data = response.json()
-#         books = []
-#         for item in data.get("items", []):
-#             volume = item.get("volumeInfo", {})
-#             book = {
-#                 "book_id": item.get("id"),
-#                 "title": volume.get("title"),
-#                 "authors": volume.get("authors", []),
-#                 "published_date": volume.get("publishedDate", "Unknown"),
-#                 "publisher": volume.get("publisher"),
-#                 "user_status": "unread", # Default status for fetched books
-#             }
-#             books.append(book)
-#         return books
-#     except requests.RequestException as e:
-#         raise HTTPException(status_code=503, detail=f"Google Books API error: {e}")
-
-
-# # 2. Add new books to MongoDB bookshelf
-# @app.post("/save_book_by_id/", tags=["Save Book"])
-# def save_book_by_id(
-#     book_id: str,
-#     user_status: str = Query("unread", description="User's reading status for the book"),
-# ):
-#     try:
-#         # 1. Fetch book details from Google Books API
-#         params = {"q": f"id:{book_id}"}
-#         response = requests.get(GOOGLE_BOOKS_API_URL, params=params, timeout=5)
-#         response.raise_for_status()
-#         data = response.json()
-
-#         if not data.get("items"):
-#             raise HTTPException(status_code=404, detail=f"Book with ID '{book_id}' not found on Google Books.")
-
-#         item = data["items"]
-#         volume = item.get("volumeInfo", {})
-
-#         # 2. Construct Book object
-#         book_to_save = Book(
-#             book_id=item.get("id"),
-#             title=volume.get("title"),
-#             authors=volume.get("authors", []),
-#             published_date=volume.get("publishedDate", "Unknown"),
-#             publisher=volume.get("publisher"),
-#             user_status=user_status,
-#         )
-
-#         # 3. Check if book already exists in MongoDB
-#         if collection.find_one({"book_id": book_id}):
-#             raise HTTPException(status_code=409, detail=f"Book with ID '{book_id}' already exists in your bookshelf.")
-
-#         # 4. Save the book to MongoDB
-#         collection.insert_one(book_to_save.dict())
-
-#         return {"message": "Book saved successfully to bookshelf", "book": book_to_save.dict()}
-
-#     except requests.RequestException as e:
-#         raise HTTPException(status_code=503, detail=f"Google Books API error: {e}")
-#     except PyMongoError as e:
-#         raise HTTPException(status_code=500, detail=f"Database error: {e}")
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"Error saving book: {e}")
-
-# # 3. Fetch all books from bookshelf
-# @app.get("/bookshelf/", tags=["Bookshelf"])
-# def fetch_bookshelf():
-#     books = list(collection.find({}, {"_id": 0}))
-#     return books
-
-
-# # 4. Search books in bookshelf by title or author
-# @app.get("/search_bookshelf/", tags=["Bookshelf"])
-# def search_bookshelf(
-#     title: Optional[str] = None,
-#     author: Optional[str] = None,
-# ):
-#     query = {}
-#     if title:
-#         query["title"] = {"$regex": title, "$options": "i"}  # case-insensitive regex
-#     if author:
-#         query["authors"] = {"$elemMatch": {"$regex": author, "$options": "i"}}
-#     if not query:
-#         raise HTTPException(status_code=400, detail="Provide at least title or author to search")
-#     books = list(collection.find(query, {"_id": 0}))
-#     return books
-
-
-# # 5. Recommend books based on authors of a given book title
-# @app.get("/recommendations/{title}", tags=["Recommendations"])
-# def recommend_books(title: str):
-#     book = collection.find_one({"title": title})
-#     if not book:
-#         raise HTTPException(status_code=404, detail="Book not found in bookshelf")
-
-#     authors = book.get("authors", [])
-#     if not authors:
-#         raise HTTPException(status_code=404, detail="No authors found for this book")
-
-#     recommendations = []
-#     seen_ids = set()
-#     for author in authors:
-#         try:
-#             response = requests.get(GOOGLE_BOOKS_API_URL, params={"q": f"inauthor:{author}", "maxResults": 5}, timeout=5)
-#             response.raise_for_status()
-#             data = response.json()
-#             for item in data.get("items", []):
-#                 vol = item.get("volumeInfo", {})
-#                 book_id = item.get("id")
-#                 title_ = vol.get("title")
-#                 if book_id and title_ and title_ != title and book_id not in seen_ids:
-#                     recommendations.append({
-#                         "title": title_,
-#                         "authors": vol.get("authors", []),
-#                         "published_date": vol.get("publishedDate", "Unknown"),
-#                         "book_id": book_id,
-#                     })
-#                     seen_ids.add(book_id)
-#         except requests.RequestException:
-#             continue
-
-#     return recommendations
-
-
+It allows users to search for books via the Google Books API, save them to a MongoDB
+bookshelf, and perform various queries and recommendations. The application provides
+endpoints for fetching books, saving them by ID, retrieving the entire bookshelf,
+searching for specific books, and getting recommendations based on authors.
+"""
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 from typing import List, Optional
@@ -176,6 +21,17 @@ MAX_RESULTS = 10
 
 
 class Book(BaseModel):
+    """
+    Represents a book in the user's bookshelf.
+
+    Attributes:
+        title (str): The title of the book.
+        authors (List[str]): A list of authors of the book.
+        published_date (str): The publication date of the book.
+        publisher (Optional[str]): The publisher of the book.
+        user_status (str): The user's reading status for the book (e.g., "unread", "reading", "finished").
+        book_id (str): The unique Google Books ID for the book.
+    """
     title: str
     authors: List[str] = []
     published_date: str = "Unknown"
@@ -185,6 +41,13 @@ class Book(BaseModel):
 
 
 class BookItem(BaseModel):
+    """
+    Represents a book item as returned by the Google Books API.
+
+    Attributes:
+        id (Optional[str]): The unique Google Books ID for the book.
+        volumeInfo (Optional[dict]): A dictionary containing detailed information about the book.
+    """
     id: Optional[str] = None
     volumeInfo: Optional[dict] = {}
 
@@ -193,6 +56,18 @@ class BookItem(BaseModel):
 
 @app.get("/fetch_books/", tags=["Fetch Books"])
 def fetch_books(query: str):
+    """
+    Searches for books on the Google Books API based on a query.
+
+    Args:
+        query (str): The search term to use for finding books.
+
+    Returns:
+        List[dict]: A list of books matching the search query.
+
+    Raises:
+        HTTPException: If there is an error communicating with the Google Books API.
+    """
     try:
         params = {"q": query, "maxResults": MAX_RESULTS}
         response = requests.get(GOOGLE_BOOKS_API_URL, params=params, timeout=5)
@@ -228,6 +103,20 @@ def save_book_by_id(
         "unread", description="User's reading status for the book"
     ),
 ):
+    """
+    Saves a book to the user's bookshelf using its Google Books ID.
+
+    Args:
+        book_id (str): The Google Books ID of the book to save.
+        user_status (str, optional): The user's reading status for the book. Defaults to "unread".
+
+    Returns:
+        dict: A message confirming the book was saved and the book data.
+
+    Raises:
+        HTTPException: If the book is not found on Google Books, if the book already exists in the bookshelf,
+                       or if there is a database or API error.
+    """
     try:
         # fetch directly by volume ID (fixed)
         response = requests.get(f"{GOOGLE_BOOKS_API_URL}/{book_id}", timeout=5)
@@ -279,6 +168,12 @@ def save_book_by_id(
 
 @app.get("/bookshelf/", tags=["Bookshelf"])
 def fetch_bookshelf():
+    """
+    Retrieves all books from the user's bookshelf.
+
+    Returns:
+        List[dict]: A list of all books in the bookshelf.
+    """
     books = list(collection.find({}, {"_id": 0}))
     return books
 
@@ -288,6 +183,18 @@ def fetch_bookshelf():
 
 @app.get("/search_bookshelf/", tags=["Bookshelf"])
 def search_bookshelf(search: str):
+    """
+    Searches for books in the bookshelf by ID, title, or author.
+
+    Args:
+        search (str): The search term to use.
+
+    Returns:
+        List[dict]: A list of books matching the search criteria.
+
+    Raises:
+        HTTPException: If the search term is empty.
+    """
     if not search.strip():
         raise HTTPException(status_code=400, detail="Search term cannot be empty")
     query = {
@@ -307,6 +214,18 @@ def search_bookshelf(search: str):
 
 @app.get("/recommendations/{title}", tags=["Recommendations"])
 def recommend_books(title: str):
+    """
+    Recommends books based on the authors of a book in the bookshelf.
+
+    Args:
+        title (str): The title of the book to get recommendations for.
+
+    Returns:
+        List[dict]: A list of recommended books.
+
+    Raises:
+        HTTPException: If the book is not found in the bookshelf or has no authors.
+    """
     book = collection.find_one({"title": title})
     if not book:
         raise HTTPException(status_code=404, detail="Book not found in bookshelf")

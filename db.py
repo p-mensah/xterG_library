@@ -1,4 +1,10 @@
+"""
+This module handles the connection to the MongoDB database.
 
+It retrieves the MongoDB connection string from an environment variable,
+establishes a connection to the database, and provides a collection
+object for other modules to interact with.
+"""
 import os
 from pymongo import MongoClient
 
